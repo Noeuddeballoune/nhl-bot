@@ -1,37 +1,45 @@
 # model.py
-player_data = {
-    "Connor McDavid": {"prev_points": 120, "age": 26},
-    "Sidney Crosby": {"prev_points": 85, "age": 37},
-    "Auston Matthews": {"prev_points": 100, "age": 26},
-    "Leon Draisaitl": {"prev_points": 115, "age": 27},
-    "Nathan MacKinnon": {"prev_points": 95, "age": 27},
-}
+import lightgbm as lgb
+import pandas as pd
+from data import df
 
-def predict_points(player_name):
-    player = player_data.get(player_name)
-    if not player:
+# ---------------------------
+# Préparer les données
+# ---------------------------
+# On utilise 'prev_points' et 'age' comme features simples
+# Pour les équipes, age = 0
+X = df[['prev_points', 'age']].fillna(0)
+y = df['prev_points']  # pour l'exemple, on prédit la même valeur
+
+# Créer et entraîner un modèle LightGBM
+model = lgb.LGBMRegressor()
+model.fit(X, y)
+
+# ---------------------------
+# Fonctions de prédiction
+# ---------------------------
+
+def predict_points(name):
+    """
+    Prédit le nombre de points pour un joueur, gardien ou équipe.
+    Retourne None si le nom n'existe pas dans le dataset.
+    """
+    row = df[df['name'].str.lower() == name.lower()]
+    if row.empty:
         return None
+    features = row[['prev_points', 'age']].values
+    prediction = model.predict(features)[0]
+    return round(prediction)
 
-    base = player["prev_points"]
-    age = player["age"]
-    if age < 27:
-        factor = 1.05
-    elif age > 35:
-        factor = 0.90
-    else:
-        factor = 1.0
-
-    prediction = round(base * factor)
-    return prediction
-
-def best_player(player_list):
-    best = None
+def best_choice(names):
+    """
+    Prend une liste de noms et retourne celui avec le plus de points prédits.
+    """
+    best_name = None
     best_points = -1
-    for player in player_list:
-        points = predict_points(player)
+    for name in names:
+        points = predict_points(name)
         if points is not None and points > best_points:
             best_points = points
-            best = player
-    if best is None:
-        return None, None
-    return best, best_points
+            best_name = name
+    return best_name, best_points
