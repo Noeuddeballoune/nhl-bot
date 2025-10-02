@@ -6,19 +6,22 @@ app = FastAPI()
 
 @app.post("/")
 async def poe_handler(req: Request):
-    try:
-        data = await req.json()
-    except:
-        return {"content": [{"type": "text", "text": "Erreur : impossible de lire la requête."}]}
-
+    # Lire la requête envoyée par Poe
+    data = await req.json()
     user_query = data.get("query", "")
-    if not user_query:
-        return {"content": [{"type": "text", "text": "Aucun texte reçu."}]}
 
-    # Extraire les noms séparés par des virgules
-    names = [n.strip() for n in user_query.replace("?", "").split(",") if n.strip() != ""]
+    # -----------------------------
+    # Extraire les noms à comparer
+    # -----------------------------
+    # On suppose que l'utilisateur écrit les noms séparés par des virgules
+    # Exemple : "Connor McDavid, Sidney Crosby, Tampa Bay Lightning"
+    user_query_clean = user_query.replace("?", "").strip()
+    names = [n.strip() for n in user_query_clean.split(",")]
 
-    if not names:
+    # -----------------------------
+    # Logique de prédiction
+    # -----------------------------
+    if not names or names == [""]:
         prediction = "Je n’ai pas trouvé de joueur, gardien ou équipe dans votre message."
     elif len(names) == 1:
         points = predict_points(names[0])
@@ -33,8 +36,20 @@ async def poe_handler(req: Request):
         else:
             prediction = f"Parmi les choix donnés, {best_name} est celui avec le plus de points prédits : {best_points} points."
 
-    return {"content": [{"type": "text", "text": prediction}]}
+    # -----------------------------
+    # Réponse au format attendu par Poe
+    # -----------------------------
+    return {
+        "content": [
+            {
+                "type": "text",
+                "text": prediction
+            }
+        ]
+    }
 
-# Pour tester localement
+# -----------------------------
+# Lancer le serveur (Railway / local)
+# -----------------------------
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
