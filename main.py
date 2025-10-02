@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from model import predict_points, best_player
 import uvicorn
 
 app = FastAPI()
@@ -8,20 +9,23 @@ async def poe_handler(req: Request):
     data = await req.json()
     user_query = data.get("query", "")
 
-    # -------------------------------
-    # LOGIQUE DU BOT
-    # (pour l’instant, simple exemple)
-    # -------------------------------
-    if "McDavid" in user_query or "Connor McDavid" in user_query:
-        prediction = "Connor McDavid devrait produire environ 120 à 130 points en 2025-26."
-    elif "Crosby" in user_query or "Sidney Crosby" in user_query:
-        prediction = "Sidney Crosby pourrait produire autour de 80 à 90 points en 2025-26."
-    else:
-        prediction = f"Je n’ai pas encore de projection précise pour {user_query}, mais je peux expliquer la méthode."
+    # --- Détecter si l'utilisateur donne plusieurs joueurs ---
+    # Exemple de message attendu : "Qui aura le plus de points entre McDavid, Crosby et Matthews ?"
+    player_names = []
+    for name in ["Connor McDavid", "Sidney Crosby", "Auston Matthews", "Leon Draisaitl", "Nathan MacKinnon"]:
+        if name.lower() in user_query.lower():
+            player_names.append(name)
 
-    # -------------------------------
-    # RÉPONSE AU FORMAT ATTENDU PAR POE
-    # -------------------------------
+    if len(player_names) == 0:
+        prediction = "Je n’ai pas trouvé de joueur connu dans votre message."
+    elif len(player_names) == 1:
+        points = predict_points(player_names[0])
+        prediction = f"{player_names[0]} devrait produire environ {points} points la saison prochaine."
+    else:
+        best, points = best_player(player_names)
+        prediction = f"Parmi les joueurs donnés, {best} est celui avec le plus de points prédits : {points} points."
+
+    # Réponse au format Poe
     return {
         "content": [
             {
@@ -33,3 +37,4 @@ async def poe_handler(req: Request):
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
